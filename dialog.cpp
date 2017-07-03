@@ -64,8 +64,8 @@ void Dialog::sendDat(QUdpSocket *sock, QHostAddress &haddr, qint16 port, char *p
     TFTPhdr_t * TFTPhdr;
     TFTPhdr = (TFTPhdr_t*)malloc(size+(sizeof(uint16_t)*2));
     TFTPhdr->th_opcode = qToBigEndian((uint16_t)DATA);
-    TFTPhdr->th_block = qToBigEndian((uint16_t)curBlock);
     curBlock++;
+    TFTPhdr->th_block = qToBigEndian((uint16_t)curBlock);
     memcpy(TFTPhdr->th_data,pdata,size);
     sock->writeDatagram((char *)TFTPhdr,size+sizeof(uint16_t)*2,haddr,port);
 }
@@ -183,7 +183,7 @@ void Dialog::on_pushButton_clicked()
         this->file = new QFile(fileName);
         if(!file->open(QIODevice::WriteOnly))
         {
-            QMessageBox::warning(this,tr("错误"),tr("文件打开错误！"));
+            QMessageBox::warning(this,tr("错误"),tr("文件打开错误"));
             return;
         }
 
