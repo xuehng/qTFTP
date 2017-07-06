@@ -59,13 +59,12 @@ void Dialog::sendACK(QUdpSocket *sock, QHostAddress &haddr, qint16 port, uint16_
     sock->writeDatagram((char *)TFTPhdr,len,haddr,port);
 }
 
-void Dialog::sendDat(QUdpSocket *sock, QHostAddress &haddr, qint16 port, char *pdata, qint16 size)
+void Dialog::sendDat(QUdpSocket *sock, QHostAddress &haddr, qint16 port, char *pdata, qint16 size,qint16 blockNum)
 {
     TFTPhdr_t * TFTPhdr;
     TFTPhdr = (TFTPhdr_t*)malloc(size+(sizeof(uint16_t)*2));
     TFTPhdr->th_opcode = qToBigEndian((uint16_t)DATA);
-    curBlock++;
-    TFTPhdr->th_block = qToBigEndian((uint16_t)curBlock);
+    TFTPhdr->th_block = qToBigEndian((uint16_t)blockNum);
     memcpy(TFTPhdr->th_data,pdata,size);
     sock->writeDatagram((char *)TFTPhdr,size+sizeof(uint16_t)*2,haddr,port);
 }
@@ -75,8 +74,8 @@ void Dialog::procPack(QUdpSocket *sock, QHostAddress &haddr, qint16 port, char *
 {
     TFTPhdr_t *TFTPhdr = (TFTPhdr_t *)data;
     char strCount[100];
-    char buff[600];
-    int bufSize;
+    //char buff[600];
+    //int bufSize;
     switch(qFromBigEndian((uint16_t)TFTPhdr->th_opcode))
     {
     case DATA:
@@ -106,7 +105,15 @@ void Dialog::procPack(QUdpSocket *sock, QHostAddress &haddr, qint16 port, char *
         break;
 
     case ACK:
-        bufSize = file->read(buff,512);
+        qWarning() << "____ACK____" << qFromBigEndian((uint16_t)TFTPhdr->th_block);
+        if(curBlock != qFromBigEndian((uint16_t)TFTPhdr->th_block)){
+            qWarning() << "___________________notice packet ack" << qFromBigEndian((uint16_t)TFTPhdr->th_block);
+
+        }else
+            bufSize = file->read(buff,512);
+
+        curBlock = qFromBigEndian((uint16_t)TFTPhdr->th_block) + 1;
+
         if(bufSize<0)
         {
             file->close();
@@ -127,7 +134,7 @@ void Dialog::procPack(QUdpSocket *sock, QHostAddress &haddr, qint16 port, char *
         ui->textBrowser->setText(QString(strCount));
         count ++;
         recvCount += bufSize - 4;
-        sendDat(sockd,haddr,port,buff,bufSize);
+        sendDat(sockd,haddr,port,buff,bufSize,curBlock);
         break;
 
     case ERROR:
@@ -137,8 +144,7 @@ void Dialog::procPack(QUdpSocket *sock, QHostAddress &haddr, qint16 port, char *
         ui->pushButton_2->setEnabled(1);
         break;
     default:
-        qDebug("proc Bad pack!");
-        exit(0);
+        qDebug("proc Bad pack!_packet sending stopped");
 
     }
 }

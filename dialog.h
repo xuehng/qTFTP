@@ -28,7 +28,7 @@ public:
 private:
     void sendReQ(QUdpSocket *sock,QHostAddress &haddr,qint16 port,char *fileName , uint16_t rw);
     void sendACK(QUdpSocket *sock,QHostAddress &haddr,qint16 port,uint16_t block);
-    void sendDat(QUdpSocket *sock,QHostAddress &haddr,qint16 port,char *pdata,qint16 size);
+    void sendDat(QUdpSocket *sock,QHostAddress &haddr,qint16 port,char *pdata,qint16 size,qint16 blockNum);
     void procPack(QUdpSocket *sock,QHostAddress &haddr,qint16 port,char *data,qint16 size);
 
     QUdpSocket *sockd;
@@ -36,6 +36,10 @@ private:
     uint16_t curBlock;
     DialogGetFileName *dlg ;
     QTimer *timer;
+
+    char buff[600];
+    int bufSize;
+
     int count;
     int recvCount;
     double speed;
