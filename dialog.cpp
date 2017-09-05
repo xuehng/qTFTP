@@ -13,6 +13,7 @@ Dialog::Dialog(QWidget *parent) :
     }
     dlg = new DialogGetFileName(this);
     timer = new QTimer(this);
+    bufSize = -2;
     count = 0;
     recvCount = 0;
     connect(sockd,SIGNAL(readyRead()),this,SLOT(recvDat()));
@@ -34,7 +35,7 @@ Dialog::~Dialog()
 void Dialog::sendReQ(QUdpSocket *sock, QHostAddress &haddr, qint16 port, char *fileName ,uint16_t rw)
 {
     TFTPhdr_t * TFTPhdr;
-    size_t len = strlen("octet")+1 + strlen(fileName)+1 + 4;
+    size_t len = strlen("octet")+1 + strlen(fileName)+1 + 2;
     TFTPhdr = (TFTPhdr_t *)malloc(len);
     TFTPhdr->th_opcode = qToBigEndian((uint16_t)rw);
     char *p = (char *)TFTPhdr;
@@ -109,8 +110,19 @@ void Dialog::procPack(QUdpSocket *sock, QHostAddress &haddr, qint16 port, char *
         if(curBlock != qFromBigEndian((uint16_t)TFTPhdr->th_block)){
             qWarning() << "___________________notice packet ack" << qFromBigEndian((uint16_t)TFTPhdr->th_block);
 
-        }else
+        }else{
+
+            if(bufSize==-2)
+                qWarning() << "___bufSize___" << bufSize;
+            if( bufSize >= 0 && bufSize < 512 ){
+                qWarning() << "______0 <= bufSize < 512____";
+                timer->stop();
+                break;
+            }
+
             bufSize = file->read(buff,512);
+
+        }
 
         curBlock = qFromBigEndian((uint16_t)TFTPhdr->th_block) + 1;
 
@@ -222,6 +234,8 @@ void Dialog::on_pushButton_2_clicked()
         int in = dst.indexOf(':');
         static quint16 port = dst.mid(in+1).toInt();
         QHostAddress haddr(dst.left(in));
+        bufSize = -2;
+
         sendReQ(sockd,haddr,port,finfo.fileName().toLatin1().data(),WRQ);
         timer->start(200);
         curBlock = 0;
