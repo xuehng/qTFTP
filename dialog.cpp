@@ -6,17 +6,18 @@ Dialog::Dialog(QWidget *parent) :
     ui(new Ui::Dialog)
 {
     ui->setupUi(this);
-    sockd = new QUdpSocket();
-    if(sockd->bind(7755))
+    m_sockd = new QUdpSocket();
+    if(m_sockd->bind(7755))
     {
         qDebug()<<"bind succ";
     }
+    m_RemotePort = 0;
     dlg = new DialogGetFileName(this);
     timer = new QTimer(this);
     bufSize = -2;
     count = 0;
     recvCount = 0;
-    connect(sockd,SIGNAL(readyRead()),this,SLOT(recvDat()));
+    connect(m_sockd,SIGNAL(readyRead()),this,SLOT(recvDat()));
     connect(timer,SIGNAL(timeout()),this,SLOT(timeCount()));
 }
 
@@ -70,6 +71,18 @@ void Dialog::sendDat(QUdpSocket *sock, QHostAddress &haddr, qint16 port, char *p
     sock->writeDatagram((char *)TFTPhdr,size+sizeof(uint16_t)*2,haddr,port);
 }
 
+void Dialog::sendErr(QUdpSocket *sock, QHostAddress &haddr, quint16 port)
+{
+    TFTPhdr_t * TFTPhdr;
+    TFTPhdr = (TFTPhdr_t*)malloc( strlen("client_stopped")+1+sizeof(uint16_t)*2 );
+    TFTPhdr->th_opcode = qToBigEndian((uint16_t)ERROR);
+    TFTPhdr->th_code = qToBigEndian((uint16_t)0);
+    char *p = (char *)TFTPhdr;
+    memcpy(p+4,"client_stopped",strlen("client_stopped")+1);
+
+    if(-1 == sock->writeDatagram((char *)TFTPhdr,strlen("client_stopped")+1+sizeof(uint16_t)*2,haddr,port))
+        qWarning() << "___sendErr_failed:" << sock->error();
+}
 
 void Dialog::procPack(QUdpSocket *sock, QHostAddress &haddr, qint16 port, char *data, qint16 size)
 {
@@ -146,7 +159,7 @@ void Dialog::procPack(QUdpSocket *sock, QHostAddress &haddr, qint16 port, char *
         ui->textBrowser->setText(QString(strCount));
         count ++;
         recvCount += bufSize - 4;
-        sendDat(sockd,haddr,port,buff,bufSize,curBlock);
+        sendDat(m_sockd,haddr,port,buff,bufSize,curBlock);
         break;
 
     case ERROR:
@@ -166,11 +179,13 @@ void Dialog::recvDat()
     static QHostAddress haddr;
     static quint16 port;
     static QByteArray dataGram;
-    while(sockd->hasPendingDatagrams())
+    while(m_sockd->hasPendingDatagrams())
     {
-        dataGram.resize(sockd->pendingDatagramSize());
-        sockd->readDatagram(dataGram.data(),dataGram.size(),&haddr,&port);
-        procPack(sockd,haddr,port,dataGram.data(),dataGram.size());
+        dataGram.resize(m_sockd->pendingDatagramSize());
+        m_sockd->readDatagram(dataGram.data(),dataGram.size(),&haddr,&port);
+        m_RemoteAddr = haddr;
+        m_RemotePort = port;
+        procPack(m_sockd,haddr,port,dataGram.data(),dataGram.size());
     }
 }
 
@@ -205,7 +220,7 @@ void Dialog::on_pushButton_clicked()
             return;
         }
 
-        sendReQ(sockd,haddr,port,(char *)fileName.toLatin1().data(),RRQ);
+        sendReQ(m_sockd,haddr,port,(char *)fileName.toLatin1().data(),RRQ);
         timer->start(200);
         curBlock = 0;
         recvCount = 0;
@@ -236,7 +251,7 @@ void Dialog::on_pushButton_2_clicked()
         QHostAddress haddr(dst.left(in));
         bufSize = -2;
 
-        sendReQ(sockd,haddr,port,finfo.fileName().toLatin1().data(),WRQ);
+        sendReQ(m_sockd,haddr,port,finfo.fileName().toLatin1().data(),WRQ);
         timer->start(200);
         curBlock = 0;
         recvCount = 0;
@@ -245,3 +260,8 @@ void Dialog::on_pushButton_2_clicked()
         ui->pushButton_2->setDisabled(1);
     }
 }
+
+void Dialog::on_pushButton_3_clicked(){
+    sendErr(m_sockd, m_RemoteAddr, m_RemotePort);
+}
+

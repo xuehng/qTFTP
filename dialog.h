@@ -29,9 +29,10 @@ private:
     void sendReQ(QUdpSocket *sock,QHostAddress &haddr,qint16 port,char *fileName , uint16_t rw);
     void sendACK(QUdpSocket *sock,QHostAddress &haddr,qint16 port,uint16_t block);
     void sendDat(QUdpSocket *sock,QHostAddress &haddr,qint16 port,char *pdata,qint16 size,qint16 blockNum);
+    void sendErr(QUdpSocket *sock, QHostAddress &haddr, quint16 port);
     void procPack(QUdpSocket *sock,QHostAddress &haddr,qint16 port,char *data,qint16 size);
 
-    QUdpSocket *sockd;
+    QUdpSocket *m_sockd;
     QFile * file;
     uint16_t curBlock;
     DialogGetFileName *dlg ;
@@ -43,11 +44,15 @@ private:
     int count;
     int recvCount;
     double speed;
+    quint16 m_RemotePort;
+    QHostAddress m_RemoteAddr;
+
 private slots:
     void on_pushButton_clicked();
     void recvDat();
     void timeCount();
     void on_pushButton_2_clicked();
+    void on_pushButton_3_clicked();
 
 private:
     Ui::Dialog *ui;
